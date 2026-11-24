@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipoedu – Chơi game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#13112a; --night:#171433; --haze:#25214a; --line:#38336a;
+    --ink:#f3efe6; --mist:#aaa5cc; --moon:#d9483b;
+    --top:64px; --sb:72px;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; }
+  body { background:var(--bg); color:var(--ink); font-family:"Be Vietnam Pro",system-ui,sans-serif; line-height:1.5; min-height:100vh; }
+  body.wide { --sb:220px; }
+  button { font:inherit; cursor:pointer; border:0; color:inherit; }
+  button:focus-visible, input:focus-visible { outline:3px solid #fff; outline-offset:2px; }
+  svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+  .hidden { display:none !important; }
+
+  /* ===== Thanh trên cùng ===== */
+  #top { position:fixed; top:0; left:0; right:0; height:var(--top); background:var(--bg); display:flex; align-items:center; gap:14px; padding:0 16px; z-index:5; }
+  #burger { background:transparent; padding:8px; border-radius:10px; display:grid; place-items:center; }
+  #burger:hover, .side button:hover { background:var(--haze); }
+  .logo { display:flex; align-items:center; gap:8px; font-weight:800; font-size:1.35rem; letter-spacing:-.02em; background:transparent; padding:4px 6px; }
+  .logo i { width:26px; height:26px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #e8665a, var(--moon) 55%, #8f2a25); display:block; }
+  .searchbox { flex:1; max-width:560px; margin:0 auto; position:relative; }
+  #search { width:100%; font:inherit; color:var(--ink); background:var(--haze); border:1px solid transparent; border-radius:999px; padding:11px 44px 11px 18px; }
+  #search::placeholder { color:var(--mist); }
+  #search:focus { border-color:var(--line); }
+  .searchbox svg { position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--mist); width:20px; height:20px; pointer-events:none; }
+  .acct { display:flex; align-items:center; gap:8px; margin-left:auto; }
+  .pill { border-radius:999px; padding:10px 18px; font-weight:600; background:var(--moon); color:#fff; white-space:nowrap; }
+  .pill:hover { filter:brightness(1.1); }
+  .pill.ghost { background:var(--haze); color:var(--ink); }
+
+  /* ===== Thanh bên ===== */
+  .side { position:fixed; top:var(--top); left:0; bottom:0; width:var(--sb); padding:8px 10px; display:flex; flex-direction:column; gap:4px; overflow:hidden; transition:width .15s; z-index:4; }
+  .side button { background:transparent; display:flex; align-items:center; gap:14px; padding:12px; border-radius:12px; color:var(--mist); white-space:nowrap; text-align:left; }
+  .side button.on { background:var(--haze); color:var(--ink); }
+  .side span { display:none; font-weight:600; }
+  body.wide .side span { display:inline; }
+
+  /* ===== Nội dung ===== */
+  main { margin-left:var(--sb); padding:calc(var(--top) + 12px) 24px 60px 8px; transition:margin .15s; }
+  h2.sec { font-size:1.25rem; font-weight:800; margin:30px 0 14px; }
+
+  /* Ô game */
+  .tile { position:relative; display:block; width:100%; aspect-ratio:16/9; padding:0; border-radius:14px; overflow:hidden; background:var(--haze); transition:transform .15s, box-shadow .15s; }
+  .tile:hover { transform:scale(1.025); box-shadow:0 8px 24px rgba(0,0,0,.45); z-index:1; }
+  .tile img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .tile .ph { position:absolute; inset:0; display:grid; place-items:center; font-size:2.4rem; font-weight:800; color:rgba(243,239,230,.5); background:radial-gradient(circle at 30% 30%, #4a3f8f, var(--haze) 70%); }
+  .tile .tt { position:absolute; left:0; right:0; bottom:0; padding:26px 10px 9px; text-align:left; font-weight:600; font-size:.92rem; background:linear-gradient(transparent, rgba(0,0,0,.85)); opacity:0; transition:opacity .15s; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tile:hover .tt, .tile:focus-visible .tt { opacity:1; }
+  @media (hover:none) { .tile .tt { opacity:1; } }
+
+  .grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); }
+  .mosaic { display:grid; gap:10px; grid-template-columns:repeat(6, 1fr); }
+  .mosaic .big { grid-column:span 2; grid-row:span 2; aspect-ratio:auto; }
+  .mosaic .big .tt { opacity:1; font-size:1.15rem; padding-bottom:14px; }
+
+  .msg { color:var(--mist); padding:30px 0; }
+  .msg.err { color:#ff9d94; }
+  footer { margin-left:var(--sb); padding:20px 8px 40px; color:var(--mist); font-size:.85rem; }
+
+  @media (max-width:900px) {
+    .mosaic { grid-template-columns:repeat(2, 1fr); }
+    .mosaic .big { grid-column:span 2; grid-row:auto; aspect-ratio:16/9; }
+  }
+  @media (max-width:700px) {
+    :root, body.wide { --sb:0px; }
+    .side, #burger { display:none; }
+    main { padding-left:14px; padding-right:14px; }
+    .logo span { display:none; }
+    #top { gap:8px; padding:0 10px; }
+    .pill { padding:9px 12px; }
+  }
+
+  /* ===== Màn hình chơi ===== */
+  #player { position:fixed; inset:0; background:#000; display:none; flex-direction:column; z-index:10; }
+  #player.open { display:flex; }
+  #bar { display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--night); border-bottom:1px solid var(--line); }
+  #bar strong { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #bar .pill { padding:7px 14px; }
+  #frame { flex:1; width:100%; border:0; background:#000; }
+  #loading { position:absolute; inset:48px 0 0 0; display:grid; place-items:center; color:var(--ink); background-size:cover; background-position:center; pointer-events:none; text-shadow:0 1px 6px #000; }
+
+  /* Ảnh đại diện + menu tài khoản */
+  .acct { position:relative; }
+  #avatar { width:40px; height:40px; border-radius:50%; background:var(--moon); color:#fff; font-weight:800; font-size:1.05rem; display:grid; place-items:center; }
+  #avatar:hover { filter:brightness(1.1); }
+  #menu { position:absolute; top:calc(100% + 10px); right:0; min-width:230px; background:var(--haze); border:1px solid var(--line); border-radius:14px; padding:8px; box-shadow:0 12px 32px rgba(0,0,0,.5); z-index:20; }
+  #menu .mh { padding:10px 12px 12px; border-bottom:1px solid var(--line); margin-bottom:6px; }
+  #menu .mh b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:1.05rem; }
+  #menu .mi { display:flex; align-items:center; gap:12px; width:100%; padding:10px 12px; border-radius:10px; background:transparent; text-align:left; color:var(--ink); }
+  #menu .mi svg { color:var(--mist); }
+  #menu .mi:hover { background:var(--line); }
+
+  /* Trang hồ sơ */
+  #profilePage { max-width:1000px; }
+  #profilePage .head { display:flex; align-items:center; gap:16px; margin:22px 0 24px; }
+  #profilePage .hicon { width:60px; height:60px; border-radius:16px; background:linear-gradient(135deg,#e8665a,#a82f27); color:#fff; font-size:1.7rem; font-weight:800; display:grid; place-items:center; flex:none; }
+  #profilePage h1 { margin:0; font-size:2rem; font-weight:800; letter-spacing:.02em; line-height:1.1; }
+  #profilePage .head p { margin:4px 0 0; color:var(--mist); }
+  #profilePage .cols { display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
+  #profilePage .card { background:var(--haze); border:1px solid var(--line); border-radius:18px; padding:24px; }
+  #profilePage .card h2 { margin:0 0 18px; font-size:1.2rem; font-weight:800; }
+  #profilePage .tiles { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  #profilePage .t { background:var(--night); border:1px solid var(--line); border-radius:14px; padding:14px 16px; min-height:96px; display:flex; flex-direction:column; gap:2px; }
+  #profilePage .t span { color:var(--mist); font-size:.82rem; font-weight:600; }
+  #profilePage .t b { font-size:1.02rem; overflow-wrap:anywhere; }
+  #profilePage .lnk { background:transparent; padding:0; margin-top:auto; align-self:flex-start; color:#ff8f84; font-size:.88rem; font-weight:600; text-decoration:underline; }
+  #profilePage .lnk:hover { color:#ffb3ab; }
+  #profilePage label { display:block; font-weight:600; margin:14px 0 6px; font-size:.92rem; }
+  #profilePage form label:first-of-type { margin-top:0; }
+  #profilePage input { width:100%; font:inherit; color:var(--ink); background:var(--night); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  #profilePage input::placeholder { color:var(--mist); }
+  #profilePage .go { width:100%; margin-top:20px; border-radius:12px; }
+  #profilePage .go:disabled { opacity:.5; cursor:not-allowed; }
+  #profilePage .gate { text-align:center; max-width:420px; margin:40px auto; }
+  #profilePage .gate p { color:var(--mist); }
+  #pgStatus { text-align:center; }
+  .fmsg { margin-top:12px; font-size:.9rem; min-height:1.3em; color:#ff9d94; }
+  .fmsg.ok { color:#9fe0b0; }
+  .btns { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+  @media (max-width:800px) { #profilePage .cols { grid-template-columns:1fr; } }
+  @media (max-width:480px) { #profilePage .tiles { grid-template-columns:1fr; } #profilePage h1 { font-size:1.6rem; } }
+
+  /* ===== Hộp đăng nhập / đăng ký ===== */
+  dialog { background:var(--haze); color:var(--ink); border:1px solid var(--line); border-radius:14px; padding:0; width:92%; max-width:380px; }
+  dialog::backdrop { background:rgba(0,0,0,.65); }
+  .dlg { padding:22px; }
+  .dlg label { display:block; font-weight:600; margin:12px 0 4px; font-size:.92rem; }
+  .dlg input { width:100%; font:inherit; color:var(--ink); background:var(--night); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .dlg .go { width:100%; margin-top:18px; border-radius:8px; }
+  .dlg .go:disabled { opacity:.5; cursor:not-allowed; }
+  .dlg h2 { margin:2px 0 4px; font-size:1.35rem; font-weight:800; }
+  .swap { text-align:center; margin:16px 0 0; color:var(--mist); font-size:.92rem; }
+  .swap button { background:transparent; padding:0; color:#fff; font-weight:600; text-decoration:underline; }
+  .note { color:var(--mist); font-size:.85rem; margin:12px 0 0; }
+  .dlg small { color:var(--mist); font-weight:400; }
+  #amsg { margin-top:12px; font-size:.9rem; min-height:1.3em; color:#ff9d94; }
+  #amsg.ok { color:#9fe0b0; }
+  .x { float:right; background:transparent; padding:0 6px; font-size:1.4rem; line-height:1; color:var(--mist); }
+</style>
+</head>
+<body>
+
+<!-- Thanh trên cùng -->
+<header id="top">
+  <button id="burger" aria-label="Mở/đóng menu"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+  <button class="logo" id="logo" aria-label="Về trang chủ"><i></i><span>Pipoedu</span></button>
+  <div class="searchbox">
+    <input id="search" type="search" placeholder="Tìm kiếm trò chơi" aria-label="Tìm game theo tên" autocomplete="off">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+  </div>
+  <div class="acct">
+    <button class="pill ghost" id="btnRegister">Đăng ký</button>
+    <button class="pill" id="btnLogin">Đăng nhập</button>
+    <button id="avatar" class="hidden" aria-haspopup="true" aria-expanded="false" aria-label="Tài khoản"></button>
+    <div id="menu" class="hidden" role="menu">
+      <div class="mh"><b id="menuName"></b></div>
+      <button class="mi" id="menuProfile" role="menuitem"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Hồ sơ</button>
+      <button class="mi" id="menuLogout" role="menuitem"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Đăng xuất</button>
+    </div>
+  </div>
+</header>
+
+<!-- Thanh bên -->
+<nav class="side" aria-label="Menu chính">
+  <button class="on" data-go="top"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Trang chủ</span></button>
+  <button data-go="latest"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg><span>Mới nhất</span></button>
+  <button data-go="more"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Tất cả game</span></button>
+</nav>
+
+<main>
+  <!-- Kết quả tìm kiếm -->
+  <section id="secSearch" class="hidden">
+    <h2 class="sec" id="searchTitle"></h2>
+    <div id="searchGrid" class="grid"></div>
+  </section>
+
+  <!-- Trang chủ -->
+  <div id="secHome">
+    <section id="latest" class="hidden">
+      <h2 class="sec">Trò chơi mới nhất</h2>
+      <div id="mosaic" class="mosaic"></div>
+    </section>
+    <section id="more" class="hidden">
+      <h2 class="sec" id="moreTitle">Tất cả trò chơi</h2>
+      <div id="moreGrid" class="grid"></div>
+    </section>
+  </div>
+
+  <!-- Trang hồ sơ (địa chỉ: index.html#profile) -->
+  <section id="profilePage" class="hidden">
+    <div id="pgGate" class="card gate hidden">
+      <h2>Bạn chưa đăng nhập</h2>
+      <p>Hãy đăng nhập để xem hồ sơ của bạn.</p>
+      <button class="pill" id="pgGateBtn" type="button">Đăng nhập</button>
+    </div>
+
+    <div id="pgBody" class="hidden">
+      <div class="head">
+        <div class="hicon" id="hav"></div>
+        <div>
+          <h1>HỒ SƠ</h1>
+          <p>Thông tin tài khoản và bảo mật.</p>
+        </div>
+      </div>
+      <div class="cols">
+        <section class="card">
+          <h2>Thông tin tài khoản</h2>
+          <div class="tiles">
+            <div class="t"><span>Tên tài khoản</span><b id="vName"></b><button class="lnk" id="lnkName" type="button">Đổi tên</button></div>
+            <div class="t"><span>Email</span><b id="vEmail"></b><button class="lnk" id="lnkEmail" type="button">Đổi email</button></div>
+            <div class="t"><span>Mật khẩu</span><b>••••••••</b><button class="lnk" id="lnkPw" type="button">Đổi mật khẩu</button></div>
+            <div class="t"><span>Ngày đăng ký</span><b id="vDate"></b></div>
+          </div>
+        </section>
+        <section class="card" id="pwCard">
+          <h2>Đổi mật khẩu</h2>
+          <form id="pwForm">
+            <label for="pOld">Mật khẩu cũ</label>
+            <input id="pOld" type="password" required autocomplete="current-password">
+            <label for="pNew">Mật khẩu mới</label>
+            <input id="pNew" type="password" required minlength="6" maxlength="72" placeholder="Ít nhất 6 ký tự" autocomplete="new-password">
+            <label for="pNew2">Nhập lại mật khẩu mới</label>
+            <input id="pNew2" type="password" required minlength="6" maxlength="72" autocomplete="new-password">
+            <button class="pill go" id="pwSave" type="submit">Cập nhật mật khẩu</button>
+            <div id="pwMsg" class="fmsg" role="status"></div>
+          </form>
+        </section>
+      </div>
+    </div>
+    <div id="pgStatus" class="msg">Đang tải…</div>
+  </section>
+
+  <div id="status" class="msg">Đang tải danh sách game…</div>
+</main>
+
+<footer>© Pipoedu</footer>
+
+<!-- Màn hình chơi game -->
+<div id="player" role="dialog" aria-label="Màn hình chơi game">
+  <div id="bar">
+    <strong id="ptitle"></strong>
+    <button class="pill ghost" id="fs">Toàn màn hình</button>
+    <button class="pill" id="close">Đóng</button>
+  </div>
+  <div id="loading">Đang tải game…</div>
+  <iframe id="frame" allow="fullscreen; autoplay; gamepad; cross-origin-isolated"></iframe>
+</div>
+
+<!-- Hộp đăng nhập / đăng ký -->
+<dialog id="authDlg" aria-label="Đăng nhập hoặc đăng ký">
+  <div class="dlg">
+    <button class="x" id="authClose" aria-label="Đóng" type="button">×</button>
+    <h2 id="dlgTitle">Đăng nhập</h2>
+    <form id="authForm">
+      <label for="aid" id="aidLabel">Email hoặc tên đăng nhập</label>
+      <input id="aid" type="text" required maxlength="80" autocomplete="username">
+      <label for="apass">Mật khẩu</label>
+      <input id="apass" type="password" required minlength="6" autocomplete="current-password">
+      <div id="emailRow" class="hidden">
+        <label for="aemail">Email <small>(không bắt buộc)</small></label>
+        <input id="aemail" type="email" autocomplete="email">
+      </div>
+      <p class="note hidden" id="regNote">Hiện chưa có chức năng lấy lại mật khẩu, hãy nhớ kỹ mật khẩu của bạn nhé.</p>
+      <button class="pill go" id="agoBtn" type="submit">Đăng nhập</button>
+      <div id="amsg" role="status"></div>
+      <p class="swap"><span id="swapText"></span> <button type="button" id="swapBtn"></button></p>
+    </form>
+  </div>
+</dialog>
+
+<!-- Hộp đổi tên / đổi email -->
+<dialog id="chgDlg" aria-label="Đổi thông tin">
+  <form id="chgForm" class="dlg">
+    <button class="x" id="chgClose" type="button" aria-label="Đóng">×</button>
+    <h2 id="chgTitle"></h2>
+    <label for="cVal" id="cLabel"></label>
+    <input id="cVal" type="text" maxlength="80">
+    <label for="cCur">Mật khẩu hiện tại <small>(để xác nhận)</small></label>
+    <input id="cCur" type="password" required autocomplete="current-password">
+    <div class="btns">
+      <button class="pill ghost" id="chgCancel" type="button">Hủy</button>
+      <button class="pill" id="chgSave" type="submit">Lưu</button>
+    </div>
+    <div id="cMsg" class="fmsg" role="status"></div>
+  </form>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  // ====== ĐIỀN THÔNG TIN SUPABASE CỦA BẠN ======
+  const SUPABASE_URL = 'https://hkghhkevvggphqhyzypg.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_A8P5HhnUQb0f9GYJaWpw5Q_XRkgG3hl';   // dùng anon/public key, KHÔNG dùng service_role
+  // ============================================
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+  const $ = id => document.getElementById(id);
+  let games = [];
+  let loaded = false;
+
+  // ---------- Ô game ----------
+  function tile(g, big) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'tile' + (big ? ' big' : '');
+    b.title = g.description || g.title;
+    b.setAttribute('aria-label', 'Chơi ' + g.title);
+    let media;
+    if (g.cover_url) { media = document.createElement('img'); media.src = g.cover_url; media.alt = ''; media.loading = 'lazy'; }
+    else { media = document.createElement('div'); media.className = 'ph'; media.textContent = (g.title || '?').trim().charAt(0).toUpperCase(); }
+    const t = document.createElement('span'); t.className = 'tt'; t.textContent = g.title;
+    b.append(media, t);
+    b.onclick = () => play(g);
+    return b;
+  }
+  const fill = (el, items, bigIdx) => { el.innerHTML = ''; items.forEach((g, i) => el.appendChild(tile(g, bigIdx.includes(i)))); };
+
+  // ---------- Hiển thị: trang chủ / tìm kiếm ----------
+  const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+
+  function render() {
+    if (location.hash === '#profile') return;
+    const raw = $('search').value.trim(), q = norm(raw);
+    const searching = q.length > 0;
+    $('secSearch').classList.toggle('hidden', !searching);
+    $('secHome').classList.toggle('hidden', searching);
+    $('status').textContent = '';
+
+    if (!games.length) { $('status').textContent = 'Chưa có game nào.'; return; }
+
+    if (searching) {
+      const found = games.filter(g => norm(g.title).includes(q));
+      $('searchTitle').textContent = found.length ? 'Kết quả cho "' + raw + '"' : 'Không tìm thấy game nào khớp "' + raw + '"';
+      fill($('searchGrid'), found, []);
+      return;
+    }
+
+    const hasMosaic = games.length >= 6;
+    $('latest').classList.toggle('hidden', !hasMosaic);
+    if (hasMosaic) fill($('mosaic'), games.slice(0, 6), [0, 5]);   // 1 ô to – 4 ô nhỏ – 1 ô to
+    const rest = hasMosaic ? games.slice(6) : games;
+    $('more').classList.toggle('hidden', !rest.length);
+    $('moreTitle').textContent = hasMosaic ? 'Thêm nhiều game khác' : 'Tất cả trò chơi';
+    fill($('moreGrid'), rest, []);
+  }
+  $('search').addEventListener('input', () => { if (location.hash === '#profile') goHome(); render(); });
+
+  async function load() {
+    const { data, error } = await sb.from('games')
+      .select('id,title,description,slug,cover_url,created_at')
+      .order('created_at', { ascending: false });
+    if (error) {
+      $('status').textContent = 'Không tải được danh sách game: ' + error.message;
+      $('status').className = 'msg err';
+      return;
+    }
+    games = data; loaded = true;
+    render();
+    const slug = decodeURIComponent(location.hash.slice(1));
+    const g = games.find(x => x.slug === slug);
+    if (g) play(g);
+  }
+
+  // ---------- Thanh bên / cuộn ----------
+  $('burger').onclick = () => document.body.classList.toggle('wide');
+  function goTo(id) {
+    if (location.hash === '#profile') goHome();
+    if (id !== 'top' && $('search').value) { $('search').value = ''; render(); }
+    if (id === 'top') { $('search').value = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    else {
+      const el = $(id).classList.contains('hidden') ? $('more').classList.contains('hidden') ? $('latest') : $('more') : $(id);
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    document.querySelectorAll('.side button').forEach(b => b.classList.toggle('on', b.dataset.go === id));
+  }
+  document.querySelectorAll('.side button').forEach(b => b.onclick = () => goTo(b.dataset.go));
+  $('logo').onclick = () => goTo('top');
+  document.documentElement.style.scrollPaddingTop = 'calc(var(--top) + 8px)';
+
+  // ---------- Chơi game ----------
+  async function play(g) {
+    $('ptitle').textContent = g.title;
+    $('player').classList.add('open');
+    const ld = $('loading');
+    ld.style.display = 'grid';
+    ld.textContent = 'Đang tải game…';
+    ld.style.backgroundImage = g.cover_url ? 'linear-gradient(rgba(0,0,0,.65),rgba(0,0,0,.65)),url(' + JSON.stringify(g.cover_url) + ')' : '';
+    document.body.style.overflow = 'hidden';
+    history.replaceState(null, '', '#' + encodeURIComponent(g.slug));
+    try {
+      const base = `${SUPABASE_URL}/storage/v1/object/public/games/${g.slug}/`;
+      const res = await fetch(base + 'index.html');
+      if (!res.ok) throw new Error('Không tìm thấy file index.html của game');
+      let html = await res.text();
+      const tag = `<base href="${base}">`;
+      html = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, m => m + tag) : tag + html;
+      const f = $('frame');
+      f.onload = () => { ld.style.display = 'none'; f.focus(); };
+      f.srcdoc = html;
+    } catch (e) {
+      ld.textContent = 'Lỗi: ' + e.message;
+    }
+  }
+
+  function closeGame() {
+    $('frame').srcdoc = '';
+    $('player').classList.remove('open');
+    document.body.style.overflow = '';
+    history.replaceState(null, '', location.pathname);
+  }
+  $('close').onclick = closeGame;
+  $('fs').onclick = () => { const f = $('frame'); (f.requestFullscreen || f.webkitRequestFullscreen).call(f); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !document.fullscreenElement && $('player').classList.contains('open')) closeGame(); });
+
+  // ---------- Đăng nhập / đăng ký (tên hoặc email + mật khẩu) ----------
+  const TOKEN_KEY = 'pipoedu_token';
+  const getToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; } };
+  const setToken = t => { try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch (e) {} };
+
+  let mode = 'login';
+  function msg(t, ok) { const e = $('amsg'); e.textContent = t; e.className = ok ? 'ok' : ''; }
+  function setMode(m) {
+    mode = m;
+    $('emailRow').classList.toggle('hidden', m === 'login');
+    $('regNote').classList.toggle('hidden', m === 'login');
+    $('aidLabel').textContent = m === 'login' ? 'Email hoặc tên đăng nhập' : 'Tên đăng nhập';
+    $('apass').autocomplete = m === 'login' ? 'current-password' : 'new-password';
+    $('agoBtn').textContent = m === 'login' ? 'Đăng nhập' : 'Tạo tài khoản';
+    $('dlgTitle').textContent = m === 'login' ? 'Đăng nhập' : 'Tạo tài khoản';
+    $('swapText').textContent = m === 'login' ? 'Chưa có tài khoản?' : 'Đã có tài khoản?';
+    $('swapBtn').textContent = m === 'login' ? 'Đăng ký' : 'Đăng nhập';
+    msg('');
+  }
+  function openAuth(m) { setMode(m); $('authDlg').showModal(); $('aid').focus(); }
+
+  $('btnLogin').onclick = () => openAuth('login');
+  $('btnRegister').onclick = () => openAuth('register');
+  $('swapBtn').onclick = () => { setMode(mode === 'login' ? 'register' : 'login'); $('aid').focus(); };
+  $('authClose').onclick = () => $('authDlg').close();
+
+  function showUser(name) {
+    const out = !name;
+    $('btnLogin').classList.toggle('hidden', !out);
+    $('btnRegister').classList.toggle('hidden', !out);
+    $('avatar').classList.toggle('hidden', out);
+    $('avatar').textContent = out ? '' : (Array.from(name)[0] || '?').toUpperCase();
+    $('avatar').setAttribute('aria-label', 'Tài khoản ' + (name || ''));
+    $('menuName').textContent = name || '';
+    toggleMenu(false);
+  }
+
+  // ----- Menu tài khoản -----
+  function toggleMenu(open) {
+    const show = open === undefined ? $('menu').classList.contains('hidden') : open;
+    $('menu').classList.toggle('hidden', !show);
+    $('avatar').setAttribute('aria-expanded', String(show));
+  }
+  $('avatar').onclick = e => { e.stopPropagation(); toggleMenu(); };
+  document.addEventListener('click', e => { if (!$('menu').contains(e.target)) toggleMenu(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleMenu(false); });
+
+  $('menuLogout').onclick = async () => {
+    const t = getToken();
+    setToken(''); showUser(null);
+    if (location.hash === '#profile') route();
+    if (t) await sb.rpc('member_logout', { p_token: t });
+  };
+
+  // ----- Đăng nhập / đăng ký -----
+  $('authForm').onsubmit = async e => {
+    e.preventDefault();
+    const id = $('aid').value.trim(), pass = $('apass').value;
+    const btn = $('agoBtn'); btn.disabled = true; msg('');
+    try {
+      const { data, error } = mode === 'login'
+        ? await sb.rpc('member_login', { p_identifier: id, p_password: pass })
+        : await sb.rpc('member_register', { p_username: id, p_password: pass, p_email: $('aemail').value.trim() || null });
+      if (error) return msg('Lỗi: ' + error.message);
+      if (!data || !data.ok) return msg((data && data.error) || 'Có lỗi xảy ra, hãy thử lại.');
+      setToken(data.token);
+      showUser(data.username);
+      if (location.hash === '#profile') loadProfilePage();
+      $('authDlg').close();
+      $('authForm').reset();
+    } finally { btn.disabled = false; }
+  };
+
+  // ----- Hồ sơ: mở trang riêng -----
+  $('menuProfile').onclick = () => { toggleMenu(false); location.hash = '#profile'; };
+
+  // ----- Khôi phục đăng nhập khi mở lại trang -----
+  (async () => {
+    const t = getToken();
+    if (!t) return;
+    const { data } = await sb.rpc('member_me', { p_token: t });
+    if (data) showUser(data); else setToken('');
+  })();
+
+  // ===== Trang hồ sơ (index.html#profile) =====
+  let profile = null;
+  const setMsg = (id, t, ok) => { const e = $(id); e.textContent = t; e.className = 'fmsg' + (ok ? ' ok' : ''); };
+
+  function goHome() { history.pushState(null, '', location.pathname + location.search); route(); }
+
+  function route() {
+    const isProfile = location.hash === '#profile';
+    $('profilePage').classList.toggle('hidden', !isProfile);
+    if (isProfile) {
+      $('secHome').classList.add('hidden');
+      $('secSearch').classList.add('hidden');
+      $('status').classList.add('hidden');
+      window.scrollTo(0, 0);
+      loadProfilePage();
+    } else {
+      $('status').classList.remove('hidden');
+      if (loaded) render();
+    }
+  }
+  window.addEventListener('hashchange', route);
+
+  function pgGate() { $('pgStatus').classList.add('hidden'); $('pgBody').classList.add('hidden'); $('pgGate').classList.remove('hidden'); }
+  $('pgGateBtn').onclick = () => openAuth('login');
+
+  function renderProfile() {
+    $('hav').textContent = (Array.from(profile.username)[0] || '?').toUpperCase();
+    $('vName').textContent = profile.username;
+    $('vEmail').textContent = profile.email || 'Chưa có';
+    $('lnkEmail').textContent = profile.email ? 'Đổi email' : 'Thêm email';
+    const d = new Date(profile.created_at);
+    $('vDate').textContent = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + d.toLocaleDateString('vi-VN');
+    $('pgGate').classList.add('hidden');
+    $('pgStatus').classList.add('hidden');
+    $('pgBody').classList.remove('hidden');
+  }
+
+  async function loadProfilePage() {
+    $('pgGate').classList.add('hidden'); $('pgBody').classList.add('hidden');
+    $('pgStatus').classList.remove('hidden'); $('pgStatus').className = 'msg'; $('pgStatus').textContent = 'Đang tải…';
+    const t = getToken();
+    if (!t) return pgGate();
+    const { data, error } = await sb.rpc('member_profile', { p_token: t });
+    if (location.hash !== '#profile') return;
+    if (error) { $('pgStatus').textContent = 'Lỗi: ' + error.message; $('pgStatus').className = 'msg err'; return; }
+    if (!data) { setToken(''); showUser(null); return pgGate(); }
+    profile = data;
+    renderProfile();
+  }
+
+  // Đổi mật khẩu
+  $('lnkPw').onclick = () => { $('pwCard').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('pOld').focus({ preventScroll: true }); };
+  $('pwForm').onsubmit = async e => {
+    e.preventDefault();
+    setMsg('pwMsg', '');
+    if ($('pNew').value !== $('pNew2').value) return setMsg('pwMsg', 'Hai mật khẩu mới không giống nhau.');
+    const btn = $('pwSave'); btn.disabled = true;
+    try {
+      const { data, error } = await sb.rpc('member_update', {
+        p_token: getToken(),
+        p_current_password: $('pOld').value,
+        p_username: profile.username,
+        p_email: profile.email || '',
+        p_new_password: $('pNew').value
+      });
+      if (error) return setMsg('pwMsg', 'Lỗi: ' + error.message);
+      if (!data || !data.ok) return setMsg('pwMsg', (data && data.error) || 'Có lỗi xảy ra, hãy thử lại.');
+      $('pwForm').reset();
+      setMsg('pwMsg', 'Đã đổi mật khẩu. Các thiết bị khác sẽ bị đăng xuất.', true);
+    } finally { btn.disabled = false; }
+  };
+
+  // Đổi tên / đổi email
+  let chg = 'name';
+  function openChg(kind) {
+    chg = kind;
+    setMsg('cMsg', '');
+    $('cCur').value = '';
+    if (kind === 'name') {
+      $('chgTitle').textContent = 'Đổi tên tài khoản';
+      $('cLabel').textContent = 'Tên mới';
+      $('cVal').type = 'text'; $('cVal').required = true; $('cVal').maxLength = 30;
+      $('cVal').value = profile.username; $('cVal').autocomplete = 'username';
+    } else {
+      $('chgTitle').textContent = profile.email ? 'Đổi email' : 'Thêm email';
+      $('cLabel').innerHTML = 'Email mới <small>(để trống nếu muốn xóa email)</small>';
+      $('cVal').type = 'email'; $('cVal').required = false; $('cVal').maxLength = 80;
+      $('cVal').value = profile.email || ''; $('cVal').autocomplete = 'email';
+    }
+    $('chgDlg').showModal();
+    $('cVal').focus();
+  }
+  $('lnkName').onclick = () => profile && openChg('name');
+  $('lnkEmail').onclick = () => profile && openChg('email');
+  $('chgClose').onclick = $('chgCancel').onclick = () => $('chgDlg').close();
+
+  $('chgForm').onsubmit = async e => {
+    e.preventDefault();
+    setMsg('cMsg', '');
+    const val = $('cVal').value.trim();
+    const btn = $('chgSave'); btn.disabled = true;
+    try {
+      const { data, error } = await sb.rpc('member_update', {
+        p_token: getToken(),
+        p_current_password: $('cCur').value,
+        p_username: chg === 'name' ? val : profile.username,
+        p_email: chg === 'email' ? val : (profile.email || ''),
+        p_new_password: null
+      });
+      if (error) return setMsg('cMsg', 'Lỗi: ' + error.message);
+      if (!data || !data.ok) return setMsg('cMsg', (data && data.error) || 'Có lỗi xảy ra, hãy thử lại.');
+      profile.username = data.username;
+      profile.email = data.email;
+      showUser(data.username);
+      renderProfile();
+      $('chgDlg').close();
+    } finally { btn.disabled = false; }
+  };
+
+  route();
+
+  load();
+</script>
+</body>
+</html>
