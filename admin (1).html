@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Pipoedu – Quản trị</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root { --night:#171433; --haze:#25214a; --line:#38336a; --ink:#f3efe6; --mist:#aaa5cc; --moon:#d9483b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--night); color:var(--ink); font-family:"Be Vietnam Pro",system-ui,sans-serif; line-height:1.55; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 40px 20px 80px; }
+  h1 { font-size: 2rem; font-weight: 800; margin: 0 0 4px; }
+  h2 { font-size: 1.1rem; margin: 0 0 14px; }
+  .sub { color: var(--mist); margin: 0 0 28px; }
+  .card { background:var(--haze); border:1px solid var(--line); border-radius:10px; padding:20px; margin-bottom:20px; }
+  label { display:block; font-weight:600; margin: 12px 0 4px; font-size:.95rem; }
+  input, textarea { width:100%; font:inherit; color:var(--ink); background:var(--night); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  input[type=file] { padding: 8px; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible { outline:3px solid #fff; outline-offset:2px; }
+  textarea { min-height: 70px; resize: vertical; }
+  button { font:inherit; font-weight:600; cursor:pointer; border:0; border-radius:8px; padding:10px 16px; background:var(--moon); color:#fff; margin-top:16px; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  button.ghost { background:transparent; border:1px solid var(--line); color:var(--ink); margin-top:0; padding:7px 12px; }
+  button.danger { background:transparent; border:1px solid #8f2a25; color:#ff9d94; margin-top:0; padding:7px 12px; }
+  .hint { color: var(--mist); font-size:.88rem; margin: 4px 0 0; }
+  .bar { height:10px; background:var(--night); border-radius:6px; overflow:hidden; margin-top:14px; display:none; }
+  .bar > div { height:100%; width:0; background:var(--moon); transition:width .15s; }
+  #log { color:var(--mist); font-size:.92rem; margin-top:10px; min-height:1.4em; white-space:pre-wrap; }
+  #log.err { color:#ff9d94; }
+  #log.ok { color:#9fe0b0; }
+  #preview { display:none; width:100%; max-width:280px; aspect-ratio:16/9; object-fit:cover; border-radius:8px; margin-top:10px; border:1px solid var(--line); }
+  .row { display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--line); }
+  .row:first-child { border-top:0; }
+  .row img, .row .noimg { width:72px; height:40px; object-fit:cover; border-radius:6px; background:var(--line); flex:none; }
+  .row .t { flex:1; min-width:0; }
+  .row .t b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .t span { color:var(--mist); font-size:.85rem; }
+  .top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ĐĂNG NHẬP -->
+  <section id="loginView" class="hidden">
+    <h1>Quản trị Pipoedu</h1>
+    <p class="sub">Đăng nhập bằng tài khoản admin.</p>
+    <div class="card">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username">
+      <label for="pass">Mật khẩu</label>
+      <input id="pass" type="password" autocomplete="current-password">
+      <button id="loginBtn">Đăng nhập</button>
+      <div id="loginMsg" class="hint" style="color:#ff9d94"></div>
+    </div>
+  </section>
+
+  <!-- KHÔNG PHẢI ADMIN -->
+  <section id="denyView" class="hidden">
+    <h1>Quản trị Pipoedu</h1>
+    <div class="card">
+      <p>Tài khoản <b id="denyEmail"></b> không phải admin nên không thêm hay xóa game được.</p>
+      <button id="denyLogout">Đăng xuất</button>
+    </div>
+  </section>
+
+  <!-- QUẢN LÝ -->
+  <section id="adminView" class="hidden">
+    <div class="top">
+      <div>
+        <h1>Quản trị Pipoedu</h1>
+        <p class="sub">Đăng game GameMaker lên để hiện ở trang chủ.</p>
+      </div>
+      <button class="ghost" id="logoutBtn">Đăng xuất</button>
+    </div>
+
+    <div class="card">
+      <h2>Đăng game mới</h2>
+      <label for="title">Tên game</label>
+      <input id="title" type="text" placeholder="Ví dụ: Ninja đêm trăng">
+      <label for="desc">Mô tả ngắn</label>
+      <textarea id="desc" placeholder="Game này chơi thế nào?"></textarea>
+      <label for="cover">Ảnh đại diện</label>
+      <input id="cover" type="file" accept="image/*">
+      <p class="hint">Nên dùng ảnh ngang tỉ lệ 16:9, dưới 5MB. Không chọn thì trang chủ hiện ô màu mặc định.</p>
+      <img id="preview" alt="Xem trước ảnh đại diện">
+      <label for="zip">File .zip xuất từ GameMaker (HTML5)</label>
+      <input id="zip" type="file" accept=".zip">
+      <p class="hint">Chọn nguyên file .zip. Trong zip phải có index.html.</p>
+      <button id="uploadBtn">Đăng game</button>
+      <div class="bar" id="bar"><div id="fill"></div></div>
+      <div id="log"></div>
+    </div>
+
+    <div class="card">
+      <h2>Game đã đăng</h2>
+      <div id="list"><span class="hint">Đang tải…</span></div>
+    </div>
+  </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+  // ====== ĐIỀN THÔNG TIN SUPABASE CỦA BẠN ======
+  const SUPABASE_URL = 'https://hkghhkevvggphqhyzypg.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_A8P5HhnUQb0f9GYJaWpw5Q_XRkgG3hl';   // dùng anon/public key, KHÔNG dùng service_role
+  // ============================================
+
+  const BUCKET = 'games';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const $ = id => document.getElementById(id);
+
+  const MIME = {
+    html:'text/html', htm:'text/html', js:'application/javascript', mjs:'application/javascript',
+    css:'text/css', json:'application/json', wasm:'application/wasm', txt:'text/plain',
+    png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp',
+    svg:'image/svg+xml', ico:'image/x-icon', ogg:'audio/ogg', mp3:'audio/mpeg', wav:'audio/wav',
+    m4a:'audio/mp4', mp4:'video/mp4', webm:'video/webm', ttf:'font/ttf', otf:'font/otf',
+    woff:'font/woff', woff2:'font/woff2'
+  };
+  const mime = p => MIME[(p.split('.').pop() || '').toLowerCase()] || 'application/octet-stream';
+
+  function slugify(s) {
+    const base = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'game';
+    return base + '-' + Math.random().toString(36).slice(2, 6);
+  }
+
+  function log(msg, cls) { const l = $('log'); l.textContent = msg; l.className = cls || ''; }
+  function progress(p) { $('bar').style.display = 'block'; $('fill').style.width = Math.round(p * 100) + '%'; }
+
+  // ---- Đăng nhập + kiểm tra admin ----
+  function showOnly(id) {
+    for (const v of ['loginView', 'denyView', 'adminView']) $(v).classList.toggle('hidden', v !== id);
+  }
+  async function show(session) {
+    if (!session) return showOnly('loginView');
+    const { data: isAdmin } = await sb.rpc('is_admin');
+    if (isAdmin === true) { showOnly('adminView'); loadList(); }
+    else { $('denyEmail').textContent = session.user.email; showOnly('denyView'); }
+  }
+  $('loginBtn').onclick = async () => {
+    $('loginMsg').textContent = '';
+    const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pass').value });
+    if (error) $('loginMsg').textContent = 'Đăng nhập thất bại: ' + error.message;
+  };
+  $('pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
+  $('logoutBtn').onclick = () => sb.auth.signOut();
+  $('denyLogout').onclick = () => sb.auth.signOut();
+  sb.auth.onAuthStateChange((_e, session) => { setTimeout(() => show(session), 0); });
+  sb.auth.getSession().then(({ data }) => show(data.session));
+
+  // ---- Xem trước ảnh ----
+  $('cover').onchange = () => {
+    const f = $('cover').files[0], p = $('preview');
+    if (!f) { p.style.display = 'none'; return; }
+    p.src = URL.createObjectURL(f); p.style.display = 'block';
+  };
+
+  // ---- Danh sách ----
+  async function loadList() {
+    const { data, error } = await sb.from('games').select('id,title,slug,files,cover_url,created_at').order('created_at', { ascending: false });
+    const box = $('list');
+    box.innerHTML = '';
+    if (error) { box.textContent = 'Lỗi: ' + error.message; return; }
+    if (!data.length) { box.innerHTML = '<span class="hint">Chưa có game nào.</span>'; return; }
+    for (const g of data) {
+      const row = document.createElement('div'); row.className = 'row';
+      let thumb;
+      if (g.cover_url) { thumb = document.createElement('img'); thumb.src = g.cover_url; thumb.alt = ''; }
+      else { thumb = document.createElement('div'); thumb.className = 'noimg'; }
+      const t = document.createElement('div'); t.className = 't';
+      const b = document.createElement('b'); b.textContent = g.title;
+      const s = document.createElement('span'); s.textContent = '#' + g.slug + ' · ' + (g.files || []).length + ' file';
+      t.append(b, s);
+      const view = document.createElement('a'); view.href = 'index.html#' + encodeURIComponent(g.slug); view.target = '_blank';
+      const vb = document.createElement('button'); vb.className = 'ghost'; vb.textContent = 'Xem'; view.appendChild(vb);
+      const del = document.createElement('button'); del.className = 'danger'; del.textContent = 'Xóa';
+      del.onclick = () => removeGame(g, del);
+      row.append(thumb, t, view, del);
+      box.appendChild(row);
+    }
+  }
+
+  async function removeGame(g, btn) {
+    if (!confirm('Xóa game "' + g.title + '"? Không thể hoàn tác.')) return;
+    btn.disabled = true;
+    const files = g.files || [];
+    for (let i = 0; i < files.length; i += 100) {
+      const { error } = await sb.storage.from(BUCKET).remove(files.slice(i, i + 100));
+      if (error) { alert('Lỗi xóa file: ' + error.message); btn.disabled = false; return; }
+    }
+    const { error } = await sb.from('games').delete().eq('id', g.id);
+    if (error) { alert('Lỗi xóa game: ' + error.message); btn.disabled = false; return; }
+    loadList();
+  }
+
+  // ---- Tải 1 file lên (có giới hạn thời gian + tự thử lại, tránh bị treo) ----
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('Quá thời gian chờ')), ms))]);
+  async function putFile(path, blob, type) {
+    let last;
+    for (let i = 0; i < 3; i++) {
+      try {
+        const { error } = await withTimeout(
+          sb.storage.from(BUCKET).upload(path, blob, { contentType: type, upsert: true, cacheControl: '3600' }), 60000);
+        if (!error) return;
+        last = new Error(error.message);
+        if (/row-level security|policy/i.test(error.message)) break;   // lỗi quyền thì không thử lại
+      } catch (e) { last = e; }
+    }
+    throw last;
+  }
+
+  // ---- Đăng game ----
+  $('uploadBtn').onclick = async () => {
+    const title = $('title').value.trim();
+    const file = $('zip').files[0];
+    const cover = $('cover').files[0];
+    if (!title) return log('Hãy nhập tên game.', 'err');
+    if (!file) return log('Hãy chọn file .zip.', 'err');
+    if (cover && !cover.type.startsWith('image/')) return log('Ảnh đại diện phải là file ảnh.', 'err');
+    if (cover && cover.size > 5 * 1024 * 1024) return log('Ảnh đại diện lớn hơn 5MB, hãy chọn ảnh nhỏ hơn.', 'err');
+
+    const btn = $('uploadBtn'); btn.disabled = true; progress(0);
+    const uploaded = [];
+    try {
+      log('Đang đọc file zip…');
+      const zip = await JSZip.loadAsync(file);
+      const entries = Object.values(zip.files).filter(f => !f.dir && !/(^|\/)(__MACOSX\/|\.DS_Store$|Thumbs\.db$)/.test(f.name));
+      const idx = entries.filter(f => /(^|\/)index\.html$/i.test(f.name)).sort((a, b) => a.name.length - b.name.length)[0];
+      if (!idx) throw new Error('Trong file zip không có index.html. Hãy chọn đúng file zip xuất từ GameMaker (HTML5).');
+      const prefix = idx.name.slice(0, idx.name.length - 'index.html'.length);
+      const items = entries.filter(f => f.name.startsWith(prefix)).map(f => ({ path: f.name.slice(prefix.length), entry: f }));
+
+      const slug = slugify(title);
+      let done = 0, next = 0;
+      const total = items.length + (cover ? 1 : 0);
+      log('Đang tải lên 0/' + total + ' file…');
+      const tick = () => { done++; progress(done / total); log('Đang tải lên ' + done + '/' + total + ' file…'); };
+
+      // 1) Ảnh đại diện
+      let cover_url = null;
+      if (cover) {
+        const ext = ((cover.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')) || 'jpg';
+        const cpath = slug + '/_cover-' + Math.random().toString(36).slice(2, 7) + '.' + ext;
+        await putFile(cpath, cover, cover.type || mime(cpath));
+        uploaded.push(cpath);
+        cover_url = sb.storage.from(BUCKET).getPublicUrl(cpath).data.publicUrl;
+        tick();
+      }
+
+      // 2) File game (4 file tải song song)
+      async function worker() {
+        while (next < items.length) {
+          const it = items[next++];
+          const type = mime(it.path);
+          const raw = await it.entry.async('blob');
+          const full = slug + '/' + it.path;
+          await putFile(full, new Blob([raw], { type }), type);
+          uploaded.push(full);
+          tick();
+        }
+      }
+      await Promise.all([worker(), worker(), worker(), worker()]);
+
+      const { error } = await sb.from('games').insert({ title, description: $('desc').value.trim(), slug, files: uploaded, cover_url });
+      if (error) throw new Error('Lưu thông tin game thất bại: ' + error.message);
+
+      log('Xong! Game đã hiện ở trang chủ.', 'ok');
+      $('title').value = ''; $('desc').value = ''; $('zip').value = ''; $('cover').value = ''; $('preview').style.display = 'none';
+      loadList();
+    } catch (e) {
+      log('Lỗi: ' + e.message, 'err');
+      if (uploaded.length) { await sb.storage.from(BUCKET).remove(uploaded.slice(0, 1000)); }
+    } finally {
+      btn.disabled = false;
+    }
+  };
+</script>
+</body>
+</html>
